@@ -9,6 +9,7 @@ library(ckanr)
 # update these as and when they change...
 NRS_covid_deaths <- "https://www.nrscotland.gov.uk/files//statistics/covid19/covid-deaths-data-week-15.xlsx"
 NRS_weekly_deaths <- "https://www.nrscotland.gov.uk/files//statistics/weekly-monthly-births-deaths-data/2020/mar/weekly-march-20.xlsx"
+# SG_covid_trends <- "https://www.gov.scot/binaries/content/documents/govscot/publications/statistics/2020/04/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/documents/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/govscot%3Adocument/HSCA%2B-%2BSG%2BWebsite%2B-%2BIndicator%2BTrends%2Bfor%2Bdaily%2Bdata%2Bpublication.xlsx"
 
 
 #### GET COVID DEATHS DATA ####
@@ -51,29 +52,55 @@ df_covid_deaths %>%
 
 #### GET POPULATION / WEEKLY DEATHS DATA ####
 # get national population numbers
-ckanr_setup(url = "https://www.opendata.nhs.scot/")
-res_est_1981_2018 <- resource_show(id = "27a72cc8-d6d8-430c-8b4f-3109a9ceadb1") # pop estimates
-res_proj_2018_2043 <- resource_show(id = "7a9e74c9-8746-488b-8fba-0fad7c7866ea") # pop projections
+# ckanr_setup(url = "https://www.opendata.nhs.scot/")
+# res_est_1981_2018 <- resource_show(id = "27a72cc8-d6d8-430c-8b4f-3109a9ceadb1") # pop estimates
+# res_proj_2018_2043 <- resource_show(id = "7a9e74c9-8746-488b-8fba-0fad7c7866ea") # pop projections
+# 
+# data_est_1981_2018 <- ckan_fetch(x=res_est_1981_2018$url) %>%
+#   filter(HB == "S92000003") %>%
+#   select(-HB) %>% as_tibble()
+# 
+# data_proj_2018_2043 <- ckan_fetch(x=res_proj_2018_2043$url) %>%
+#   select(-Country) %>% as_tibble()
+# 
+# df_pop <- data_est_1981_2018 %>% filter(Year >= 2015, Year < 2018) %>%
+#   bind_rows(data_proj_2018_2043 %>% filter(Year >= 2018, Year <= 2020) )%>%
+#   distinct() %>%
+#   rename("year" = "Year") %>%
+#   group_by(year) %>%
+#   summarise(population = sum(AllAges)) %>%
+#   arrange(year) %>%
+#   write_rds("data/pop.rds")
 
-data_est_1981_2018 <- ckan_fetch(x=res_est_1981_2018$url) %>%
-  filter(HB == "S92000003") %>%
-  select(-HB) %>% as_tibble()
-
-data_proj_2018_2043 <- ckan_fetch(x=res_proj_2018_2043$url) %>%
-  select(-Country) %>% as_tibble()
-
-df_pop <- data_est_1981_2018 %>% filter(Year >= 2015, Year < 2018) %>%
-  bind_rows(data_proj_2018_2043 %>% filter(Year >= 2018, Year <= 2020) )%>%
-  distinct() %>%
-  rename("year" = "Year") %>%
-  group_by(year) %>%
-  summarise(population = sum(AllAges)) %>%
-  arrange(year)
+df_pop <- read_rds("data/pop.rds")
 
 # get national weekly deaths numbers
 download.file(url = NRS_weekly_deaths, destfile = "data/NRS_weekly_deaths.xlsx")
 
-df_weekly_deaths <- read_xlsx("data/NRS_weekly_deaths.xlsx", sheet = "2014", skip = 3)
+sheets <- c("2015 ", "2016", "2017", "2018", "2019", "2020")
+
+# extract weekly death stats from this extremely consistent and totally accessible xlsx file
+for(i in seq_along(sheets)){
+  if(i == 1){df_weekly_deaths <- tibble()}
+  
+  df_to_append <- read_xlsx("data/NRS_weekly_deaths.xlsx", 
+                            sheet = sheets[i], skip = 3) %>%
+    select(Deaths, starts_with("w/c"), starts_with("Week No")) %>%
+    select(1, 2, last_col())
+  
+  names(df_to_append) <- c("deaths", "week_start_date", "week_number")
+  
+  df_to_append <- df_to_append %>%
+    mutate(year = as.integer(sheets[i]), 
+           week_number = as.integer(week_number))
+  
+  df_weekly_deaths <- df_weekly_deaths %>%
+    bind_rows(df_to_append %>% filter(is.na(week_start_date) == FALSE)) %>%
+    arrange(week_start_date)
+  
+  rm(df_to_append)
+}
+
 
 
 #### PLOTS  ####
