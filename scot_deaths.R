@@ -3,6 +3,8 @@ library(lubridate)
 library(roll)
 library(readxl)
 library(ckanr)
+library(scales)
+library(patchwork)
 
 
 #### PUBLICATION URLs ####
@@ -10,21 +12,24 @@ library(ckanr)
 NRS_covid_deaths <- "https://www.nrscotland.gov.uk/files//statistics/covid19/covid-deaths-data-week-15.xlsx"
 NRS_weekly_deaths <- "https://www.nrscotland.gov.uk/files//statistics/weekly-monthly-births-deaths-data/2020/mar/weekly-march-20.xlsx"
 # SG_covid_trends <- "https://www.gov.scot/binaries/content/documents/govscot/publications/statistics/2020/04/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/documents/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/govscot%3Adocument/HSCA%2B-%2BSG%2BWebsite%2B-%2BIndicator%2BTrends%2Bfor%2Bdaily%2Bdata%2Bpublication.xlsx"
-
+NRS_covid_deaths_csv <- "https://statistics.gov.scot/downloads/cube-table?uri=http%3A%2F%2Fstatistics.gov.scot%2Fdata%2Fdeaths-involving-coronavirus-covid-19"
 
 #### GET COVID DEATHS DATA ####
 
 # NRS publication, contains Scottish daily number of deaths using both NRS and HPS methodology
 download.file(url = NRS_covid_deaths, destfile = "data/NRS_covid_deaths.xlsx")
 
+# NRS publication as csv, weekly numbers only
+download.file(url = NRS_covid_deaths_csv, destfile = "data/NRS_covid_deaths.csv")
+
 # HPS daily Scottish deaths as announced by Scottish Gov, and compiled/scraped by @watty62
 download.file(url = "https://github.com/watty62/Scot_covid19/raw/master/data/processed/scot_test_positive_deceased.csv",
               destfile = "data/watt.csv")
 
+
 # Will combine @watty62 data with HPS numbers from the NRS publication. The numbers announced 
 # by the Scot Gov are not readily available in any official form other than twitter and transient
 # webpages -- this is the only method I know of to maximise date range and timeliness for this data
-
 df_covid_deaths <- read_csv("data/watt.csv") %>%
   mutate(date = dmy(Date), deaths_cumulative = deceased, source = "HPS") %>%
   select(date, deaths_cumulative, source) %>%
@@ -37,7 +42,8 @@ df_covid_deaths <- read_csv("data/watt.csv") %>%
   mutate(date = if_else(source == "HPS", date - days(1), date)) %>%
   arrange(source, date) %>%
   group_by(source) %>%
-  mutate(deaths_new = if_else(row_number() == 1, 0, deaths_cumulative - lag(deaths_cumulative)),
+  mutate(week_number = isoweek(date),
+         deaths_new = if_else(row_number() == 1, 0, deaths_cumulative - lag(deaths_cumulative)),
          deaths_new_per_day = if_else(row_number() == 1, 0, deaths_new / ((lag(date) %--% date)/days(1))),
          deaths_new_per_day_roll_week = roll_mean(deaths_new_per_day, width = 7)) %>%
   ungroup()
@@ -77,7 +83,7 @@ df_pop <- read_rds("data/pop.rds")
 # get national weekly deaths numbers
 download.file(url = NRS_weekly_deaths, destfile = "data/NRS_weekly_deaths.xlsx")
 
-sheets <- c("2015 ", "2016", "2017", "2018", "2019", "2020")
+sheets <- c("2015 ", "2016", "2017", "2018", "2019", "2020") # note space after "2015 "
 
 # extract weekly death stats from this extremely consistent and totally accessible xlsx file
 for(i in seq_along(sheets)){
@@ -92,7 +98,8 @@ for(i in seq_along(sheets)){
   
   df_to_append <- df_to_append %>%
     mutate(year = as.integer(sheets[i]), 
-           week_number = as.integer(week_number))
+           week_number = as.integer(week_number),
+           week_start_date = date(week_start_date))
   
   df_weekly_deaths <- df_weekly_deaths %>%
     bind_rows(df_to_append %>% filter(is.na(week_start_date) == FALSE)) %>%
@@ -101,48 +108,265 @@ for(i in seq_along(sheets)){
   rm(df_to_append)
 }
 
+# weekly deaths, 5 year average, max, min etc
+df_weekly_deaths_comp <- df_weekly_deaths %>%
+  left_join(df_pop) %>%
+  filter(year != 2020) %>%
+  mutate(deaths_per_100k = 10^5*deaths/population) %>%
+  group_by(week_number) %>%
+  summarise(deaths_max = max(deaths),
+            deaths_min = min(deaths),
+            deaths_avg = mean(deaths),
+            deaths_per_100k_max = max(deaths_per_100k),
+            deaths_per_100k_min = min(deaths_per_100k),
+            deaths_per_100k_avg = mean(deaths_per_100k))
+
+deaths_2020 <- 
+  # use these two lines to take 2020 weekly total deaths from weekly total deaths NRS publication.
+  # df_weekly_deaths %>%  
+  # filter(year == 2020) 
+  #
+  # use next section instead to take from the csv version of the NRS weekly covid deaths publciation.
+  # this seems to have slightly more up to date numbers for recent weeks
+  read_csv("data/NRS_covid_deaths.csv") %>%
+  filter(FeatureCode == "S92000003",
+         DateCode != "2020",
+         Sex == "All",
+         Age == "All",
+         `Location Of Death` == "All",
+         `Cause Of Death` == "All causes") %>%
+  rename(deaths = Value,
+         week_start_date = DateCode) %>%
+  select(deaths, week_start_date) %>%
+  mutate(week_start_date = ymd(week_start_date),
+         week_number = isoweek(week_start_date),
+         year = 2020) %>%
+  arrange(week_number) %>%
+  # add on NA rows for the rest of 2020
+  bind_rows(
+    tibble(week_number = 1:53,
+           week_start_date = ymd("2019-12-30")+days((week_number-1) *7),
+           deaths = NA_integer_,
+           year = 2020) %>%
+      filter(!(week_number %in% (df_weekly_deaths %>% filter(year==2020))$week_number ))
+  ) %>%
+  # add on daily HPS and NRS numbers (summed to weekly here)
+  left_join(
+    df_covid_deaths %>% 
+      group_by(week_number, source) %>%
+      summarise(deaths = sum(deaths_new)) %>%
+      pivot_wider(id_cols = week_number, names_from = source, names_prefix = "deaths_covid_", values_from = deaths)
+  ) %>%
+  # join on 2020 population to work out rates for HPS/NRS covid deaths
+  left_join(df_pop) %>%
+  mutate(deaths_total_per_100k = 10^5*deaths/population,
+         deaths_covid_NRS_per_100k = 10^5*deaths_covid_NRS/population,
+         deaths_covid_HPS_per_100k = 10^5*deaths_covid_HPS/population) %>%
+  # join on the averaged etc rates by week, for comparison
+  left_join(df_weekly_deaths_comp, by = c("week_number" = "week_number"))
 
 
 #### PLOTS  ####
-df_covid_deaths %>% 
-  ggplot(aes(x = deaths_cumulative, y = deaths_new_per_day, group = source, color = source, label=date)) +
-  geom_point() + geom_line() + theme_bw()
 
-df_covid_deaths %>% 
-  ggplot(aes(x = deaths_cumulative, y = deaths_new_per_day_roll_week, group = source, color = source, label=date)) +
-  geom_point() + geom_line() + theme_bw()
-plotly::ggplotly()
+# common plot elements
+theme_custom <- theme_bw() +
+  theme(plot.title = element_text(face="bold"),
+        text=element_text(size=16, family = "Source Sans Pro"),
+        panel.border = element_blank(),
+        legend.title = element_blank(),
+        strip.text = element_text(size = 10, face = "bold"),
+        axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"))
+  
+# weekly death rates
+deaths_2020 %>%
+  ggplot(aes(x = week_start_date)) +
+  geom_line(aes(y = deaths_total_per_100k, label = deaths, colour="all deaths")) +
+  geom_line(aes(y = deaths_per_100k_avg, colour="5yr avg deaths"), alpha=.1) +
+  geom_ribbon(aes(ymin = deaths_per_100k_min, ymax = deaths_per_100k_max, fill="5yr max/min deaths"), alpha=.1) +
+  geom_line(aes(y = deaths_covid_HPS_per_100k + deaths_per_100k_avg, colour="HPS")) +
+  geom_line(aes(y = deaths_covid_NRS_per_100k + deaths_per_100k_avg, colour="NRS")) +
+  scale_colour_manual(name = "weekly deaths", 
+                      values = c("all deaths" = "black",
+                                "5yr avg deaths" = rgb(0,0,0,.1),
+                                "HPS" = "blue",
+                                "NRS" = "red"), 
+                      labels = c("5yr avg", "all", "HPS COVID", "NRS COVID")) +
+  scale_fill_manual(name = "5yr max/min deaths",
+                    values = c("5yr max/min deaths" = "black"),
+                    labels = c("5yr max/min deaths" = "5yr max/min")) +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_text(face="bold", size=10)) +
+  labs(x = "", y = "deaths per 100,000 population", title = "Weekly Death Rates in Scotland 2020, compared to 5 year average")
 
-df_covid_deaths %>% 
+ggsave("pics/deaths_comp_rate_year.png", device = "png", dpi="retina", width=300, height=200, units="mm")
+
+# weekly deaths, zoomed in
+all_deaths_recent <- deaths_2020 %>% 
+  select(deaths, week_start_date) %>%
+  filter(is.na(deaths) == FALSE) %>%
+  summarise(deaths = last(deaths),
+            date = last(week_start_date))
+
+avg_deaths_recent <- deaths_2020 %>% 
+  select(deaths_avg, week_start_date) %>%
+  filter(week_start_date == all_deaths_recent$date) %>%
+  summarise(deaths = last(deaths_avg))
+
+NRS_covid_deaths_recent <- deaths_2020 %>% 
+  select(deaths_covid_NRS, week_start_date) %>%
+  filter(is.na(deaths_covid_NRS) == FALSE) %>%
+  summarise(deaths = last(deaths_covid_NRS))
+
+deaths_2020 %>%
+  filter(week_number >= 11,
+         week_number <= 20) %>%
+  ggplot(aes(x = week_start_date)) +
+  geom_line(aes(y = deaths, label = deaths, colour="all deaths")) +
+  geom_line(aes(y = deaths_avg, colour="5yr avg deaths"), alpha=.1) + 
+  geom_ribbon(aes(ymin = deaths_min, ymax = deaths_max, fill="5yr max/min deaths"), alpha=.1) +
+  geom_line(aes(y = deaths_covid_HPS + deaths_avg, colour="HPS")) +
+  geom_line(aes(y = deaths_covid_NRS + deaths_avg, colour="NRS")) +
+  scale_colour_manual(name = "weekly deaths", 
+                      values = c("all deaths" = "black",
+                                 "5yr avg deaths" = rgb(0,0,0,.1),
+                                 "HPS" = "blue",
+                                 "NRS" = "red"), 
+                      labels = c("5yr avg", "all", "HPS COVID", "NRS COVID")) +
+  scale_fill_manual(name = "5yr max/min deaths",
+                    values = c("5yr max/min deaths" = "black"),
+                    labels = c("5yr max/min deaths" = "5yr max/min")) +
+  scale_y_continuous(labels=comma) +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_text(face="bold", size=10)) +
+  labs(x = "", y = "deaths", title = "Weekly Deaths in Scotland 2020, compared to 5 year average") +
+  geom_label(aes(x = all_deaths_recent$date,
+                 y = all_deaths_recent$deaths,
+                 label = paste0("all deaths = ", all_deaths_recent$deaths)), nudge_y = 30) +
+  geom_label(aes(x = all_deaths_recent$date,
+                 y = NRS_covid_deaths_recent$deaths + avg_deaths_recent$deaths,
+                 label = paste0("NRS COVID deaths = ", NRS_covid_deaths_recent$deaths, 
+                                "\n5yr avg = ", avg_deaths_recent$deaths,
+                                "\ntotal = ", NRS_covid_deaths_recent$deaths + avg_deaths_recent$deaths)),
+             nudge_y = 70)
+
+ggsave("pics/deaths_comp_recent.png", device = "png", dpi="retina", width=300, height=200, units="mm")
+
+
+# df_covid_deaths %>% 
+#   ggplot(aes(x = deaths_cumulative, y = deaths_new_per_day, group = source, color = source, label=date)) +
+#   geom_point() + geom_line() + 
+#   theme_custom
+# 
+# df_covid_deaths %>% 
+#   ggplot(aes(x = deaths_cumulative, y = deaths_new_per_day_roll_week, group = source, color = source, label=date)) +
+#   geom_point() + geom_line() + theme_bw()
+
+max_y_axis <- df_covid_deaths$deaths_new_per_day %>% max()
+
+p_daily_sources_raw <- df_covid_deaths %>% 
   ggplot(aes(x = date, y = deaths_new_per_day, group = source, color = source, label=date)) +
-  geom_point() + geom_line() + theme_bw() + scale_y_log10()
-
-df_covid_deaths %>% 
+  geom_line() + 
+  scale_y_log10(limits=c(1, max_y_axis)) +
+  scale_color_manual(values = c("blue", "red")) +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        text=element_text(size=12, family = "Source Sans Pro")) +
+  labs(x = "", y = "deaths", title = "Raw Daily Data") 
+  
+p_daily_sources_rolling <- df_covid_deaths %>% 
   ggplot(aes(x = date, y = deaths_new_per_day_roll_week, group = source, color = source, label=date)) +
-  geom_point() + geom_line() + theme_bw()
+  geom_line() + 
+  scale_y_log10(limits=c(1, max_y_axis)) +
+  scale_color_manual(values = c("blue", "red")) +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        text=element_text(size=12, family = "Source Sans Pro")) +
+  labs(x = "", y = "deaths", title = "Rolling 7 Day Average") 
 
-df_covid_deaths %>% 
-  ggplot(aes(x = date, y = deaths_new_per_day_roll_week, group = source, color = source, label=date)) +
-  geom_point() + geom_line() + theme_bw() +
-  scale_y_log10()
+p_daily_sources_combined <- p_daily_sources_raw + p_daily_sources_rolling +
+  plot_annotation(
+    title = "Daily COVID19 Deaths in Scotland 2020 (using HPS/NRS methodologies)",
+    subtitle = " ",
+    theme = theme_custom)
+p_daily_sources_combined
+ggsave("pics/deaths_daily_sources_combined.png", device = "png", dpi="retina", width=300, height=200, units="mm")
 
-df_covid_deaths %>%
+
+# cumulative deaths
+p_linear_cum <- df_covid_deaths %>%
   ggplot(aes(x = date, y = deaths_cumulative, group = source, color = source, label=date)) +
-  geom_point() + geom_line() + theme_bw()
+  geom_line()  +
+  scale_color_manual(values = c("blue", "red")) +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        text=element_text(size=12, family = "Source Sans Pro")) +
+  labs(x = "", y = "deaths", title = "(linear scale)") 
 
-df_covid_deaths %>%
+p_log_cum <- df_covid_deaths %>%
   ggplot(aes(x = date, y = deaths_cumulative, group = source, color = source, label=date)) +
-  geom_point() + geom_line() + theme_bw() +
-  scale_y_log10()
+  geom_line()  +
+  scale_color_manual(values = c("blue", "red")) +
+  scale_y_log10() +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        text=element_text(size=12, family = "Source Sans Pro")) +
+  labs(x = "", y = "deaths", title = "(log scale)") 
 
-df_covid_deaths %>% 
+p_cum_combined <- p_linear_cum + p_log_cum +
+  plot_annotation(
+    title = "Cumulative COVID19 Deaths in Scotland 2020 (using HPS/NRS methodologies)",
+    subtitle = " ",
+    theme = theme_custom)
+p_cum_combined
+ggsave("pics/cum_combined.png", device = "png", dpi="retina", width=300, height=200, units="mm")
+
+
+# ratio of NRS to HPS
+max_y_axis <- max(df_covid_deaths %>% 
+      pivot_wider(date, names_from = source, values_from = deaths_cumulative) %>%
+      mutate(ratio = NRS/HPS) %>%
+      select(ratio) %>% max(na.rm = TRUE),
+    df_covid_deaths %>% 
+      pivot_wider(date, names_from = source, values_from = deaths_new_per_day_roll_week) %>%
+      mutate(ratio = NRS/HPS) %>%
+      select(ratio) %>% max(na.rm = TRUE),
+    na.rm = TRUE)
+
+p_ratio_cum <- df_covid_deaths %>% 
   pivot_wider(date, names_from = source, values_from = deaths_cumulative) %>%
   mutate(ratio = NRS/HPS) %>% 
   ggplot(aes(x = date, y = ratio)) +
-  geom_point() + geom_line() + theme_bw()
+  geom_line() + 
+  ylim(0, max_y_axis) +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        text=element_text(size=12, family = "Source Sans Pro")) +
+  labs(x = "", y = "ratio", title = "Cumulative Deaths Comparison") 
 
-df_covid_deaths %>% 
+p_ratio_daily_roll <- df_covid_deaths %>% 
   pivot_wider(date, names_from = source, values_from = deaths_new_per_day_roll_week) %>%
   mutate(ratio = NRS/HPS) %>% 
   ggplot(aes(x = date, y = ratio)) +
-  geom_point() + geom_line() + theme_bw()
+  geom_line() + 
+  ylim(0, max_y_axis) +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        text=element_text(size=12, family = "Source Sans Pro")) +
+  labs(x = "", y = "ratio", title = "Daily Deaths (7 day rolling avg) Comparison") 
+
+p_ratio_combined <- p_ratio_cum + p_ratio_daily_roll +
+  plot_annotation(
+    title = "Ratio of NRS to HPS COVID19 Daily Deaths",
+    subtitle = " ",
+    theme = theme_custom)
+p_ratio_combined
+ggsave("pics/ratio_combined.png", device = "png", dpi="retina", width=300, height=200, units="mm")
