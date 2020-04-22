@@ -9,7 +9,7 @@ library(patchwork)
 
 #### PUBLICATION URLs ####
 # update these as and when they change...
-NRS_covid_deaths <- "https://www.nrscotland.gov.uk/files//statistics/covid19/covid-deaths-data-week-15.xlsx"
+NRS_covid_deaths <- "https://www.nrscotland.gov.uk/files//statistics/covid19/covid-deaths-data-week-16.xlsx"
 NRS_weekly_deaths <- "https://www.nrscotland.gov.uk/files//statistics/weekly-monthly-births-deaths-data/2020/mar/weekly-march-20.xlsx"
 # SG_covid_trends <- "https://www.gov.scot/binaries/content/documents/govscot/publications/statistics/2020/04/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/documents/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/govscot%3Adocument/HSCA%2B-%2BSG%2BWebsite%2B-%2BIndicator%2BTrends%2Bfor%2Bdaily%2Bdata%2Bpublication.xlsx"
 NRS_covid_deaths_csv <- "https://statistics.gov.scot/downloads/cube-table?uri=http%3A%2F%2Fstatistics.gov.scot%2Fdata%2Fdeaths-involving-coronavirus-covid-19"
@@ -30,15 +30,29 @@ download.file(url = "https://github.com/watty62/Scot_covid19/raw/master/data/pro
 # Will combine @watty62 data with HPS numbers from the NRS publication. The numbers announced 
 # by the Scot Gov are not readily available in any official form other than twitter and transient
 # webpages -- this is the only method I know of to maximise date range and timeliness for this data
-df_covid_deaths <- read_csv("data/watt.csv") %>%
-  mutate(date = dmy(Date), deaths_cumulative = deceased, source = "HPS") %>%
-  select(date, deaths_cumulative, source) %>%
-  full_join(
-    read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data", 
-              skip = 2, col_types = c("date", "numeric", "text")) %>%
-      rename(date = Date, deaths_cumulative = `Cumulative Count`, source = Source) %>%
-      filter(is.na(date) == FALSE) %>%
-      mutate(date = ymd(date))) %>%
+# df_covid_deaths <- read_csv("data/watt.csv") %>%
+#   mutate(date = dmy(Date), deaths_cumulative = deceased, source = "HPS") %>%
+#   select(date, deaths_cumulative, source) %>%
+#   full_join(
+#     read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data", 
+#               skip = 2, col_types = c("date", "numeric", "text")) %>%
+#       rename(date = Date1, deaths_cumulative = `Cumulative Count`, source = Source) %>%
+#       filter(is.na(date) == FALSE) %>%
+#       mutate(date = ymd(date))) %>%
+#   mutate(date = if_else(source == "HPS", date - days(1), date)) %>%
+#   arrange(source, date) %>%
+#   group_by(source) %>%
+#   mutate(week_number = isoweek(date),
+#          deaths_new = if_else(row_number() == 1, 0, deaths_cumulative - lag(deaths_cumulative)),
+#          deaths_new_per_day = if_else(row_number() == 1, 0, deaths_new / ((lag(date) %--% date)/days(1))),
+#          deaths_new_per_day_roll_week = roll_mean(deaths_new_per_day, width = 7)) %>%
+#   ungroup()
+
+df_covid_deaths <- read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data", 
+                             skip = 2, col_types = c("date", "numeric", "text")) %>%
+  rename(date = Date1, deaths_cumulative = `Cumulative Count`, source = Source) %>%
+  filter(is.na(date) == FALSE) %>%
+  mutate(date = ymd(date)) %>%
   mutate(date = if_else(source == "HPS", date - days(1), date)) %>%
   arrange(source, date) %>%
   group_by(source) %>%
