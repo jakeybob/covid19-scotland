@@ -30,15 +30,31 @@ download.file(url = "https://github.com/watty62/Scot_covid19/raw/master/data/pro
 # Will combine @watty62 data with HPS numbers from the NRS publication. The numbers announced 
 # by the Scot Gov are not readily available in any official form other than twitter and transient
 # webpages -- this is the only method I know of to maximise date range and timeliness for this data
-# df_covid_deaths <- read_csv("data/watt.csv") %>%
-#   mutate(date = dmy(Date), deaths_cumulative = deceased, source = "HPS") %>%
-#   select(date, deaths_cumulative, source) %>%
-#   full_join(
-#     read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data", 
-#               skip = 2, col_types = c("date", "numeric", "text")) %>%
-#       rename(date = Date1, deaths_cumulative = `Cumulative Count`, source = Source) %>%
-#       filter(is.na(date) == FALSE) %>%
-#       mutate(date = ymd(date))) %>%
+df_covid_deaths <- read_csv("data/watt.csv") %>%
+  mutate(date = dmy(Date), deaths_cumulative = deceased, source = "HPS") %>%
+  mutate(date = date - days(1)) %>%
+  select(date, deaths_cumulative, source) %>%
+  full_join(
+    read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data",
+              skip = 2, col_types = c("date", "numeric", "text")) %>%
+      rename(date = Date1, deaths_cumulative = `Cumulative Count`, source = Source) %>%
+      filter(is.na(date) == FALSE) %>%
+      mutate(date = ymd(date))) %>%
+  distinct() %>%
+  # mutate(date = if_else(source == "HPS", date - days(1), date)) %>%
+  arrange(source, date) %>%
+  group_by(source) %>%
+  mutate(week_number = isoweek(date),
+         deaths_new = if_else(row_number() == 1, 0, deaths_cumulative - lag(deaths_cumulative)),
+         deaths_new_per_day = if_else(row_number() == 1, 0, deaths_new / ((lag(date) %--% date)/days(1))),
+         deaths_new_per_day_roll_week = roll_mean(deaths_new_per_day, width = 7)) %>%
+  ungroup()
+
+# df_covid_deaths <- read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data", 
+#                              skip = 2, col_types = c("date", "numeric", "text")) %>%
+#   rename(date = Date1, deaths_cumulative = `Cumulative Count`, source = Source) %>%
+#   filter(is.na(date) == FALSE) %>%
+#   mutate(date = ymd(date)) %>%
 #   mutate(date = if_else(source == "HPS", date - days(1), date)) %>%
 #   arrange(source, date) %>%
 #   group_by(source) %>%
@@ -47,20 +63,6 @@ download.file(url = "https://github.com/watty62/Scot_covid19/raw/master/data/pro
 #          deaths_new_per_day = if_else(row_number() == 1, 0, deaths_new / ((lag(date) %--% date)/days(1))),
 #          deaths_new_per_day_roll_week = roll_mean(deaths_new_per_day, width = 7)) %>%
 #   ungroup()
-
-df_covid_deaths <- read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data", 
-                             skip = 2, col_types = c("date", "numeric", "text")) %>%
-  rename(date = Date1, deaths_cumulative = `Cumulative Count`, source = Source) %>%
-  filter(is.na(date) == FALSE) %>%
-  mutate(date = ymd(date)) %>%
-  mutate(date = if_else(source == "HPS", date - days(1), date)) %>%
-  arrange(source, date) %>%
-  group_by(source) %>%
-  mutate(week_number = isoweek(date),
-         deaths_new = if_else(row_number() == 1, 0, deaths_cumulative - lag(deaths_cumulative)),
-         deaths_new_per_day = if_else(row_number() == 1, 0, deaths_new / ((lag(date) %--% date)/days(1))),
-         deaths_new_per_day_roll_week = roll_mean(deaths_new_per_day, width = 7)) %>%
-  ungroup()
 
 # test is TRUE if no missing intermediate days in each data source
 df_covid_deaths %>% 
@@ -384,3 +386,33 @@ p_ratio_combined <- p_ratio_cum + p_ratio_daily_roll +
     theme = theme_custom)
 p_ratio_combined
 ggsave("pics/ratio_combined.png", device = "png", dpi="retina", width=300, height=200, units="mm")
+
+
+## extra
+
+a <- df_covid_deaths %>% 
+  ggplot(aes(x = date, y = deaths_new_per_day_roll_week, group = source, color = source, label=date)) +
+  geom_line(size=1.2) + 
+  scale_y_log10() +
+  scale_color_manual(values = c("blue", "red")) +
+  theme_custom +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        text=element_text(size=12, family = "Source Sans Pro")) +
+  labs(x = "", y = "deaths", title = "Daily Deaths (7 day rolling avg)") 
+
+b <- df_covid_deaths %>%
+  ggplot(aes(x = date, y = deaths_cumulative, group = source, color = source, label=date)) +
+  geom_line(size=1.2) +
+  scale_color_manual(values = c("blue", "red")) +
+  scale_y_log10() +
+  theme_custom +
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        text=element_text(size=12, family = "Source Sans Pro")) +
+  labs(x = "", y = " ", title = "Cumulative Deaths") 
+
+p <- a + b
+p
+ggsave("pics/comp.png", device = "png", dpi="retina", width=300, height=200, units="mm")
+

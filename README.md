@@ -34,7 +34,7 @@ The cumulative number of deaths reported by source and day. Shown in linear and 
 
 ## Ratio of NRS to HPS Published Deaths
 
-As HPS and NRS use different methodologies to report COVID19 deaths, it might be (marginally) instructive to look at the ratio between them. Looking at both the cumulative deaths and the daily death figures, it looks like the NRS figures are settling down to be ~1.6✕ the HPS numbers.
+As HPS and NRS use different methodologies to report COVID19 deaths, it might be (marginally) instructive to look at the ratio between them. Looking at both the cumulative deaths and the daily death figures, it looks like the NRS figures are ~1.75✕ the HPS numbers.
 
 ![](pics/ratio_combined.png)
 
