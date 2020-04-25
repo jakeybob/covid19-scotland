@@ -23,15 +23,18 @@ download.file(url = NRS_covid_deaths, destfile = "data/NRS_covid_deaths.xlsx")
 download.file(url = NRS_covid_deaths_csv, destfile = "data/NRS_covid_deaths.csv")
 
 # HPS daily Scottish deaths as announced by Scottish Gov, and compiled/scraped by @watty62
-download.file(url = "https://github.com/watty62/Scot_covid19/raw/master/data/processed/scot_test_positive_deceased.csv",
-              destfile = "data/watt.csv")
+# download.file(url = "https://github.com/watty62/Scot_covid19/raw/master/data/processed/scot_test_positive_deceased.csv",
+#               destfile = "data/watt.csv")
 
+# HPS daily Scottish deaths as announced by Scottish Gov
+download.file(url = "https://raw.githubusercontent.com/DataScienceScotland/COVID-19-Management-Information/master/COVID19%20-%20Daily%20Management%20Information%20-%20Scotland%20-%20Deaths.csv",
+              destfile = "data/sg_hps.csv")
 
-# Will combine @watty62 data with HPS numbers from the NRS publication. The numbers announced 
-# by the Scot Gov are not readily available in any official form other than twitter and transient
-# webpages -- this is the only method I know of to maximise date range and timeliness for this data
-df_covid_deaths <- read_csv("data/watt.csv") %>%
-  mutate(date = dmy(Date), deaths_cumulative = deceased, source = "HPS") %>%
+# Will combine SG announced data with HPS numbers from the NRS publication. 
+df_covid_deaths <- read_csv("data/sg_hps.csv") %>%
+  mutate(date = ymd(Date), deaths_cumulative = `Number of COVID-19 confirmed deaths registered to date`, source = "HPS") %>%
+  # read_csv("data/watt.csv") %>%
+  # mutate(date = dmy(Date), deaths_cumulative = deceased, source = "HPS") %>%
   mutate(date = date - days(1)) %>%
   select(date, deaths_cumulative, source) %>%
   full_join(
