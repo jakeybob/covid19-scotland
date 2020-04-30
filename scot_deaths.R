@@ -9,7 +9,7 @@ library(patchwork)
 
 #### PUBLICATION URLs ####
 # update these as and when they change...
-NRS_covid_deaths <- "https://www.nrscotland.gov.uk/files//statistics/covid19/covid-deaths-data-week-16.xlsx"
+NRS_covid_deaths <- "https://www.nrscotland.gov.uk/files//statistics/covid19/covid-deaths-data-week-17.xlsx"
 NRS_weekly_deaths <- "https://www.nrscotland.gov.uk/files//statistics/weekly-monthly-births-deaths-data/2020/mar/weekly-march-20.xlsx"
 # SG_covid_trends <- "https://www.gov.scot/binaries/content/documents/govscot/publications/statistics/2020/04/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/documents/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/trends-in-number-of-people-in-hospital-with-confirmed-or-suspected-covid-19/govscot%3Adocument/HSCA%2B-%2BSG%2BWebsite%2B-%2BIndicator%2BTrends%2Bfor%2Bdaily%2Bdata%2Bpublication.xlsx"
 NRS_covid_deaths_csv <- "https://statistics.gov.scot/downloads/cube-table?uri=http%3A%2F%2Fstatistics.gov.scot%2Fdata%2Fdeaths-involving-coronavirus-covid-19"
@@ -53,7 +53,7 @@ df_covid_deaths <- read_csv("data/sg_hps.csv") %>%
          deaths_new_per_day_roll_week = roll_mean(deaths_new_per_day, width = 7)) %>%
   ungroup()
 
-# df_covid_deaths <- read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data", 
+# df_covid_deaths <- read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data",
 #                              skip = 2, col_types = c("date", "numeric", "text")) %>%
 #   rename(date = Date1, deaths_cumulative = `Cumulative Count`, source = Source) %>%
 #   filter(is.na(date) == FALSE) %>%

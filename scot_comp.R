@@ -38,7 +38,7 @@ df_world <- read_csv("data/covid19_deaths_world.csv") %>%
 # country level daily deaths, UK four nations
 df_uk <- read_csv("data/UK_nations_deaths.csv") %>%
   rename(area = `Area name`, date = `Reporting date`, 
-         deaths_daily = `Daily hospital deaths`, deaths = `Cumulative hospital deaths`) %>%
+         deaths_daily = `Daily change in deaths`, deaths = `Cumulative deaths`) %>%
   select(area, date, deaths, deaths_daily) %>%
   mutate(area = recode(area, "United Kingdom" = "UK",
                        "Northern Ireland" = "N. Ireland")) %>%
@@ -99,7 +99,8 @@ df_uk %>%
   geom_point() + 
   scale_colour_manual(values = colours) +
   scale_fill_manual(values = colours) +
-  geom_smooth(method = "loess", n = 7, size = highlight_line_size) +
+  # geom_smooth(method = "loess", n = 7, size = highlight_line_size) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), size = highlight_line_size) + 
   ylim(c(-.1, .1)) +
   facet_wrap(~area, nrow = 1) +
   theme_custom +
