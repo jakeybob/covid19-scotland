@@ -7,7 +7,7 @@ Data published by [National Records Scotland](https://www.nrscotland.gov.uk/), [
 
 * #not_an_epidemiologist
 * all data is provisional and subject to change
-* links to data source files and all the code to reproduce the figures can be found in the R code files in this repository
+* links to data source files and all the code to reproduce the figures can be found in the *R* code files in this repository
 * HPS and NRS collate deaths according to different methodologies outlined in [this](https://www.nrscotland.gov.uk/covid19stats) publication
 
 ## UK Daily Hospital Deaths (UK comparisons)
@@ -21,7 +21,7 @@ By plotting the gradient of the above we can look at how the daily deaths are in
 
 Note: the line fit and confidence intervals are calculated by the *R* default `stat_smooth` function and are intended to provide a rough first order guide!
 
-Looking at the UK and England data we could (arguably ... tentatively) conclude that the peak daily deaths was reached around April 15th. The argument for the other home nations is currently much less convincing. Visually from the previous plot it looks like Northern Ireland is still increasing, while Scotland and Wales remain relatively level.
+Looking at the UK and England data we could (arguably ... tentatively) conclude that the peak daily deaths was reached around April 15th. The argument for the other home nations is currently (as of May 1st) much less convincing.
 
 ## Scotland's Daily Hospital Deaths (European comparisons)
 

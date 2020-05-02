@@ -79,7 +79,7 @@ df_uk %>%
   scale_colour_manual(values = colours) +
   geom_label(data = df_uk %>% group_by(area) %>% filter(date == max(date) ),
              aes(label = area), show.legend = FALSE, nudge_x = -1.5) +
-  scale_y_log10(labels=comma) +
+  scale_y_log10(labels=comma_format(accuracy = 1)) +
   theme_custom +
   theme(legend.position = "none",
         legend.title = element_blank(),
