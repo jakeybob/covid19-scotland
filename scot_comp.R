@@ -100,7 +100,7 @@ df_uk %>%
   scale_colour_manual(values = colours) +
   scale_fill_manual(values = colours) +
   # geom_smooth(method = "loess", n = 7, size = highlight_line_size) +
-  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), size = highlight_line_size) + 
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), method.args = list(method="REML"), size = highlight_line_size) + 
   ylim(c(-.1, .1)) +
   facet_wrap(~area, nrow = 1) +
   theme_custom +
