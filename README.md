@@ -21,7 +21,7 @@ By plotting the gradient of the above we can look at how the daily deaths are in
 
 Note: the line fit and confidence intervals are calculated by the *R* default `stat_smooth` function and are intended to provide a rough first order guide!
 
-Looking at the UK and England data we could (arguably ... tentatively) conclude that the peak daily deaths was reached around April 15th. The argument for the other home nations is currently (as of May 1st) much less convincing.
+Looking at the UK and England data we could (arguably ... tentatively) conclude that the peak daily deaths was reached around April 15th. The argument for the other home nations is currently (as of May 6th) much less convincing, although Scotland and Northern Ireland do seem to be turning the corner.
 
 ## Scotland's Daily Hospital Deaths (European comparisons)
 
