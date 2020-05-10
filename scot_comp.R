@@ -177,7 +177,7 @@ df_uk %>%
   theme(legend.position = "none",
         axis.text.x = element_text(angle=90),
         strip.text = element_text(size=14)) +
-  labs(x = "", y = "", title = "UK nations: avg. daily deaths gradients & peak  daily death dates") 
+  labs(x = "", y = "", title = "UK nations: avg. daily deaths gradients & peak daily death dates") 
 ggsave("pics/uk_grad_comp2.png", device = "png", dpi="retina", width=300, height=200, units="mm")
 
 # Scotland compared to selected international countries

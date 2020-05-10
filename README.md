@@ -15,7 +15,7 @@ Data published by [National Records Scotland](https://www.nrscotland.gov.uk/), [
 A breakdown of the daily deaths in Scotland, England, Wales and Northern Ireland, and how these compare to the total UK figure. 
 ![](pics/uk_comp.png)
 
-By plotting the gradient of the above we can look at how the daily deaths are increasing, or decreasing. When the gradient is a constant positive value, the daily deaths are increasing at a constant exponential rate. When the gradient is zero (represented by the horizontal black line) the daily death rate is constant. When the gradient of the log daily deaths drops below zero, this indicates daily deaths are decreasing.
+By plotting the gradient of the above we can look at how the daily deaths are increasing, or decreasing. When the gradient is a constant positive value, the daily deaths are increasing at a constant exponential rate. When the gradient is zero (represented by the horizontal black line) the daily death rate is constant. When the gradient of the log daily deaths drops below zero, this indicates daily deaths are decreasing (i.e. the exponent of the exponential growth is now negative).
 
 ![](pics/uk_grad_comp.png)
 
@@ -25,7 +25,7 @@ Looking at the UK and England data we could (arguably ... tentatively) conclude 
 
 It might be more intuitive to look at the gradient of the daily deaths alone (i.e not the exponential behaviour component). Note that the *y* scales here are independant (necessary as the different nations have significantly different populations, and therefore quite different numbers of absolute daily deaths). Negative values indicate that the numbers of deaths each day are *decreasing* -- and the date the linefit crosses the *x* axis then repressents the day that daily deaths peak.
 
-![](pics/uk_grad_comp.png)
+![](pics/uk_grad_comp2.png)
 
 The UK and England daily deaths appear to peak around April 16th, with the rest of the UK being about 9 days later.
 
