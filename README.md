@@ -23,6 +23,12 @@ Note: the line fit and confidence intervals are calculated by the *R* default `s
 
 Looking at the UK and England data we could (arguably ... tentatively) conclude that the peak daily deaths was reached around April 15th. The argument for the other home nations is currently (as of May 6th) much less convincing, although Scotland and Northern Ireland do seem to be turning the corner.
 
+It might be more intuitive to look at the gradient of the daily deaths alone (i.e not the exponential behaviour component). Note that the *y* scales here are independant (necessary as the different nations have significantly different populations, and therefore quite different numbers of absolute daily deaths). Negative values indicate that the numbers of deaths each day are *decreasing* -- and the date the linefit crosses the *x* axis then repressents the day that daily deaths peak.
+
+![](pics/uk_grad_comp.png)
+
+The UK and England daily deaths appear to peak around April 16th, with the rest of the UK being about 9 days later.
+
 ## Scotland's Daily Hospital Deaths (European comparisons)
 
 Here we can see Scotland's daily hospital deaths (weekly rolling average) shown against several other European countries (of broadly comparable size and demographics). On the left, the number of daily deaths are plotted against date, and on the right the date axis is rebased to show each country's deaths data from the day where it first passed more than three deaths per day.

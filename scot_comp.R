@@ -110,6 +110,76 @@ df_uk %>%
 ggsave("pics/uk_grad_comp.png", device = "png", dpi="retina", width=300, height=200, units="mm")
 
 
+#### ####
+ref_date <- dmy("01/04/2020")
+
+dat <- df_uk %>%
+  arrange(date) %>%
+  mutate(area = factor(area, levels = c("UK", "England", "N. Ireland", "Scotland", "Wales"))) %>%
+  group_by(area) %>%
+  filter(date >= ref_date) %>%
+  mutate(grad = (deaths_daily_roll_week - lag(deaths_daily_roll_week)),
+         days = ref_date %--% date / days(1)) %>% 
+  ungroup()
+
+model_uk <- mgcv::gam(data = filter(dat, area=="UK"), formula = grad ~ s(days, bs = "cs"), method = "REML")
+model_eng <- mgcv::gam(data = filter(dat, area=="England"), formula = grad ~ s(days, bs = "cs"), method = "REML")
+model_scot <- mgcv::gam(data = filter(dat, area=="Scotland"), formula = grad ~ s(days, bs = "cs"), method = "REML")
+model_wal <- mgcv::gam(data = filter(dat, area=="Wales"), formula = grad ~ s(days, bs = "cs"), method = "REML")
+model_nir <- mgcv::gam(data = filter(dat, area=="N. Ireland"), formula = grad ~ s(days, bs = "cs"), method = "REML")
+
+peak_dates <- bind_rows(
+  tibble(predicted = predict(model_eng, newdata = dat %>% filter(area=="UK")),
+         days = filter(dat, area=="UK")$days,
+         area = "UK"),
+  tibble(predicted = predict(model_eng, newdata = dat %>% filter(area=="England")),
+         days = filter(dat, area=="England")$days,
+         area = "England"),
+  tibble(predicted = predict(model_scot, newdata = dat %>% filter(area=="Scotland")),
+         days = filter(dat, area=="Scotland")$days,
+         area = "Scotland"),
+  tibble(predicted = predict(model_wal, newdata = dat %>% filter(area=="Wales")),
+         days = filter(dat, area=="Wales")$days,
+         area = "Wales"),
+  tibble(predicted = predict(model_nir, newdata = dat %>% filter(area=="N. Ireland")),
+         days = filter(dat, area=="N. Ireland")$days,
+         area = "N. Ireland")
+) %>%
+  group_by(area) %>%
+  mutate(flag = if_else(predicted >= 0 & lead(predicted) < 0, TRUE, FALSE)) %>% 
+  filter(flag == TRUE) %>%
+  filter(days == min(days)) %>%
+  mutate(peak_date = ref_date + days(days)) %>% ungroup() %>%
+  mutate(area = factor(area, levels = c("UK", "England", "N. Ireland", "Scotland", "Wales"))) %>%
+  mutate(label = paste(area, "\n", format(peak_date, "%B"), ordinal(as.integer(format(peak_date, "%d"))), format(peak_date, "%Y"))) %>%
+  select(area, peak_date, label)
+
+labs <- peak_dates$label
+names(labs) <- peak_dates$area
+
+df_uk %>%
+  # filter(area != "UK") %>%
+  arrange(date) %>%
+  mutate(area = factor(area, levels = c("UK", "England", "N. Ireland", "Scotland", "Wales"))) %>%
+  left_join(peak_dates %>% select(-peak_date)) %>%
+  group_by(area) %>%
+  filter(date >= ref_date) %>%
+  mutate(grad = (deaths_daily_roll_week - lag(deaths_daily_roll_week))) %>%
+  ggplot(aes(x = date, y = grad, color = area, fill = area)) +
+  geom_hline(yintercept = 0, size = 1.2) +
+  geom_point() + 
+  geom_vline(data = peak_dates, aes(xintercept = peak_date, color=area), size = 2, alpha = .2) +
+  scale_colour_manual(values = colours) +
+  scale_fill_manual(values = colours) +
+  stat_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), method.args = list(method="REML"), size = highlight_line_size) + 
+  facet_wrap(~area, nrow = 1, scales = "free_y", labeller = labeller(area=labs)) +
+  theme_custom +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle=90),
+        strip.text = element_text(size=14)) +
+  labs(x = "", y = "", title = "UK nations: avg. daily deaths gradients & peak  daily death dates") 
+ggsave("pics/uk_grad_comp2.png", device = "png", dpi="retina", width=300, height=200, units="mm")
+
 # Scotland compared to selected international countries
 df_comp <- df_world %>%
   filter(area %in% comparison_countries) %>%
