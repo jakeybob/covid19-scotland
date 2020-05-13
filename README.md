@@ -27,7 +27,7 @@ It might be more intuitive to look at the gradient of the daily deaths alone (i.
 
 ![](pics/uk_grad_comp2.png)
 
-The UK and England daily deaths appear to peak around April 16th, with the rest of the UK being about 9 days later.
+The UK and England daily deaths appear to peak around April 16th, with the rest of the UK being about 8--10 days later.
 
 ## Scotland's Daily Hospital Deaths (European comparisons)
 

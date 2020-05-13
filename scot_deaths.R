@@ -151,7 +151,7 @@ deaths_2020 <-
          Sex == "All",
          Age == "All",
          `Location Of Death` == "All",
-         `Cause Of Death` == "All causes") %>%
+         `Cause Of Death` == "All") %>%
   rename(deaths = Value,
          week_start_date = DateCode) %>%
   select(deaths, week_start_date) %>%
@@ -240,13 +240,19 @@ NRS_covid_deaths_recent <- deaths_2020 %>%
 
 deaths_2020 %>%
   filter(week_number >= 11,
-         week_number <= 20) %>%
+         week_number <= 22) %>%
   ggplot(aes(x = week_start_date)) +
   geom_line(aes(y = deaths, label = deaths, colour="all deaths")) +
   geom_line(aes(y = deaths_avg, colour="5yr avg deaths"), alpha=.1) + 
   geom_ribbon(aes(ymin = deaths_min, ymax = deaths_max, fill="5yr max/min deaths"), alpha=.1) +
   geom_line(aes(y = deaths_covid_HPS + deaths_avg, colour="HPS")) +
   geom_line(aes(y = deaths_covid_NRS + deaths_avg, colour="NRS")) +
+  geom_hline(yintercept = filter(deaths_2020, deaths_covid_HPS == max(deaths_covid_HPS, na.rm=T))$deaths_covid_HPS + filter(deaths_2020, deaths_covid_HPS == max(deaths_covid_HPS, na.rm=T))$deaths_avg,
+             colour = "blue", alpha=.3) +
+  geom_hline(yintercept = filter(deaths_2020, deaths_covid_NRS == max(deaths_covid_NRS, na.rm=T))$deaths_covid_NRS + filter(deaths_2020, deaths_covid_NRS == max(deaths_covid_NRS, na.rm=T))$deaths_avg,
+             colour = "red", alpha=.3) +
+  geom_hline(yintercept = filter(deaths_2020, deaths == max(deaths, na.rm=T))$deaths,
+             colour = "black", alpha=.3) +
   scale_colour_manual(name = "weekly deaths", 
                       values = c("all deaths" = "black",
                                  "5yr avg deaths" = rgb(0,0,0,.1),
@@ -261,15 +267,21 @@ deaths_2020 %>%
   theme(legend.position = "right",
         legend.title = element_text(face="bold", size=10)) +
   labs(x = "", y = "deaths", title = "Weekly Deaths in Scotland 2020, compared to 5 year average") +
-  geom_label(aes(x = all_deaths_recent$date,
-                 y = all_deaths_recent$deaths,
-                 label = paste0("all deaths = ", all_deaths_recent$deaths)), nudge_y = 0, nudge_x = 8) +
-  geom_label(aes(x = all_deaths_recent$date,
-                 y = NRS_covid_deaths_recent$deaths + avg_deaths_recent$deaths,
-                 label = paste0("NRS COVID deaths = ", NRS_covid_deaths_recent$deaths, 
-                                "\n5yr avg = ", avg_deaths_recent$deaths,
-                                "\ntotal = ", NRS_covid_deaths_recent$deaths + avg_deaths_recent$deaths)),
-             nudge_y = -20, nudge_x = 8)
+  annotate("label", x = dmy("22/05/2020"), y = filter(deaths_2020, deaths_covid_HPS == max(deaths_covid_HPS, na.rm=T))$deaths_covid_HPS + filter(deaths_2020, deaths_covid_HPS == max(deaths_covid_HPS, na.rm=T))$deaths_avg, 
+           label=paste0("max: ", (filter(deaths_2020, deaths_covid_HPS == max(deaths_covid_HPS, na.rm=T))$deaths_covid_HPS + filter(deaths_2020, deaths_covid_HPS == max(deaths_covid_HPS, na.rm=T))$deaths_avg) %>% formatC(big.mark = ",")), 
+           colour="blue") +
+  annotate("label", x = dmy("22/05/2020"), y = filter(deaths_2020, deaths_covid_NRS == max(deaths_covid_NRS, na.rm=T))$deaths_covid_NRS + filter(deaths_2020, deaths_covid_NRS == max(deaths_covid_NRS, na.rm=T))$deaths_avg, 
+           label=paste0("max: ", (filter(deaths_2020, deaths_covid_NRS == max(deaths_covid_NRS, na.rm=T))$deaths_covid_NRS + filter(deaths_2020, deaths_covid_NRS == max(deaths_covid_NRS, na.rm=T))$deaths_avg) %>% formatC(big.mark = ",")), 
+           colour="red") +
+  annotate("label", x = dmy("22/05/2020"), y = filter(deaths_2020, deaths == max(deaths, na.rm=T))$deaths, 
+           label=paste0("max: ", (filter(deaths_2020, deaths == max(deaths, na.rm=T))$deaths) %>% formatC(big.mark = ",")), 
+           colour="black")
+  # geom_label(aes(x = all_deaths_recent$date,
+  #                y = NRS_covid_deaths_recent$deaths + avg_deaths_recent$deaths,
+  #                label = paste0("NRS COVID deaths = ", NRS_covid_deaths_recent$deaths, 
+  #                               "\n5yr avg = ", avg_deaths_recent$deaths,
+  #                               "\ntotal = ", NRS_covid_deaths_recent$deaths + avg_deaths_recent$deaths)),
+  #            nudge_y = -20, nudge_x = 8)
 
 ggsave("pics/deaths_comp_recent.png", device = "png", dpi="retina", width=300, height=200, units="mm")
 
