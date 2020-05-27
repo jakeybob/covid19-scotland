@@ -151,7 +151,7 @@ deaths_2020 <-
          Sex == "All",
          Age == "All",
          `Location Of Death` == "All",
-         `Cause Of Death` == "All") %>%
+         `Cause Of Death` == "All causes") %>%
   rename(deaths = Value,
          week_start_date = DateCode) %>%
   select(deaths, week_start_date) %>%
