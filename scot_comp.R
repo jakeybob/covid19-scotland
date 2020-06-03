@@ -235,3 +235,4 @@ p_comp_combined <- p_comp_1 + p_comp_2 +
     theme = theme_custom)
 p_comp_combined
 ggsave("pics/scot_comp.png", device = "png", dpi="retina", width=350, height=210, units="mm")
+

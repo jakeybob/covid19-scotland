@@ -151,7 +151,7 @@ deaths_2020 <-
          Sex == "All",
          Age == "All",
          `Location Of Death` == "All",
-         `Cause Of Death` == "All causes") %>%
+         `Cause Of Death` == "All" | `Cause Of Death` == "All causes") %>%
   rename(deaths = Value,
          week_start_date = DateCode) %>%
   select(deaths, week_start_date) %>%
@@ -175,7 +175,7 @@ deaths_2020 <- deaths_2020 %>%
       group_by(week_number, source) %>%
       summarise(deaths = sum(deaths_new)) %>%
       pivot_wider(id_cols = week_number, names_from = source, names_prefix = "deaths_covid_", values_from = deaths)
-  ) %>%
+  ) %>% 
   # join on 2020 population to work out rates for HPS/NRS covid deaths
   left_join(df_pop) %>%
   mutate(deaths_total_per_100k = 10^5*deaths/population,
