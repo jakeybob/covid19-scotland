@@ -240,7 +240,7 @@ NRS_covid_deaths_recent <- deaths_2020 %>%
 
 deaths_2020 %>%
   filter(week_number >= 11,
-         week_number <= 22) %>%
+         week_number <= 26) %>%
   ggplot(aes(x = week_start_date)) +
   geom_line(aes(y = deaths, label = deaths, colour="all deaths")) +
   geom_line(aes(y = deaths_avg, colour="5yr avg deaths"), alpha=.1) + 
