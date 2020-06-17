@@ -40,20 +40,21 @@ df_covid_deaths <- read_csv("data/sg_hps.csv") %>%
   # read_csv("data/watt.csv") %>%
   # mutate(date = dmy(Date), deaths_cumulative = deceased, source = "HPS") %>%
   mutate(date = date - days(1)) %>%
-  select(date, deaths_cumulative, source) %>%
+  select(date, deaths_cumulative, source) %>% 
   full_join(
     read_xlsx("data/NRS_covid_deaths.xlsx", sheet = "Figure 2 data",
               skip = 2, col_types = c("date", "numeric", "text")) %>%
       rename(date = Date1, deaths_cumulative = `Cumulative Count`, source = Source) %>%
       filter(is.na(date) == FALSE) %>%
       mutate(date = ymd(date))) %>%
-  distinct() %>%
+  distinct() %>% 
   # mutate(date = if_else(source == "HPS", date - days(1), date)) %>%
   arrange(source, date) %>%
   group_by(source) %>%
   mutate(week_number = isoweek(date),
-         deaths_new = if_else(row_number() == 1, 0, deaths_cumulative - lag(deaths_cumulative)),
-         deaths_new_per_day = if_else(row_number() == 1, 0, deaths_new / ((lag(date) %--% date)/days(1))),
+         deaths_new = if_else(row_number() == 1, 0, deaths_cumulative - lag(deaths_cumulative))) %>%
+  filter(deaths_new >= 0) %>% # come on tae f*ck honestly
+  mutate(deaths_new_per_day = if_else(row_number() == 1, 0, deaths_new / ((lag(date) %--% date)/days(1))),
          deaths_new_per_day_roll_week = roll_mean(deaths_new_per_day, width = 7)) %>%
   ungroup()
 
